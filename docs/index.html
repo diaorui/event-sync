@@ -1,48 +1,80 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>EventSync</title>
+  <title>Luma -> Google Calendar Sync</title>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
+  
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
   <style>
-    body { font-family: sans-serif; padding: 40px; text-align: center; }
-    .card { max-width: 400px; margin: 0 auto; padding: 20px; border: 1px solid #ccc; border-radius: 8px; }
-    input { width: 100%; padding: 8px; margin: 5px 0; box-sizing: border-box; }
-    button { background: #000; color: #fff; padding: 10px 20px; border: none; cursor: pointer; border-radius: 4px; width: 100%; }
-    #status { margin-top: 20px; color: green; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #f4f4f4; padding: 20px; text-align: center; }
+    
+    .card { 
+      background: white; 
+      max-width: 500px; 
+      margin: 0 auto; 
+      padding: 30px; 
+      border-radius: 12px; 
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1); 
+    }
+
+    h2 { margin-top: 0; color: #333; }
+    p { color: #666; margin-bottom: 20px; }
+
+    /* Map Styling */
+    #map { 
+      height: 300px; 
+      width: 100%; 
+      border-radius: 8px; 
+      margin-bottom: 15px; 
+      border: 2px solid #eee;
+      z-index: 1; /* Keep below dropdowns */
+    }
+
+    /* Form Elements */
+    label { display: block; text-align: left; font-weight: bold; margin-bottom: 5px; color: #333; }
+    select { 
+      width: 100%; padding: 12px; border-radius: 6px; 
+      border: 1px solid #ccc; font-size: 16px; margin-bottom: 20px; background: #fff;
+    }
+    
+    button { 
+      background: #000; color: #fff; font-size: 16px; font-weight: bold;
+      padding: 15px; width: 100%; border: none; border-radius: 6px; cursor: pointer; 
+      transition: background 0.2s;
+    }
+    button:hover { background: #333; }
+
+    #status { margin-top: 20px; font-size: 14px; line-height: 1.5; }
+    
+    .coord-display { font-size: 12px; color: #999; margin-bottom: 15px; text-align: right; }
   </style>
 </head>
 <body>
 
 <div class="card">
-  <h2>Luma -> Google Calendar Sync</h2>
-  <p>Select your area and sync events automatically.</p>
+  <h2>📅 Luma Local Sync</h2>
+  <p>Sync local events directly to your Google Calendar.</p>
   
-  <div style="text-align: left; margin-bottom: 15px;">
-    <label for="slug" style="font-weight: bold; display: block; margin-bottom: 5px;">Event Category:</label>
-    <select id="slug" style="width: 100%; padding: 10px; border-radius: 4px; border: 1px solid #ccc; font-size: 16px;">
-      <option value="tech">Tech</option>
-      <option value="ai" selected>AI</option>
-      <option value="crypto">Crypto</option>
-      <option value="arts">Arts & Culture</option>
-      <option value="food">Food & Drink</option>
-      <option value="fitness">Fitness</option>
-      <option value="wellness">Wellness</option>
-      <option value="climate">Climate</option>
-    </select>
-  </div>
-  
-  <div style="text-align: left;">
-    <label>Map Area (Lat/Lon):</label>
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-       <div><small>North</small><input type="text" id="north" value="37.8"></div>
-       <div><small>South</small><input type="text" id="south" value="37.3"></div>
-       <div><small>East</small><input type="text" id="east" value="-121.9"></div>
-       <div><small>West</small><input type="text" id="west" value="-122.5"></div>
-    </div>
-  </div>
-  <br>
+  <label for="slug">1. Choose Category</label>
+  <select id="slug">
+    <option value="tech">Tech</option>
+    <option value="ai" selected>AI</option>
+    <option value="crypto">Crypto</option>
+    <option value="arts">Arts & Culture</option>
+    <option value="food">Food & Drink</option>
+    <option value="fitness">Fitness</option>
+    <option value="wellness">Wellness</option>
+    <option value="climate">Climate</option>
+  </select>
 
-  <button onclick="client.requestCode();">📅 Connect & Sync</button>
+  <label>2. Select Area (Pan & Zoom)</label>
+  <div id="map"></div>
+  <div class="coord-display" id="coord-text">Selected Area: Silicon Valley</div>
+
+  <button onclick="client.requestCode();">🔄 Sync This Area</button>
+  
   <div id="status"></div>
 </div>
 
@@ -52,32 +84,52 @@
   const GAS_URL = 'https://script.google.com/macros/s/AKfycbztbxztevlcwkw5LOsKNklPUb5ASD45mxKMl1WVqx0p-ZYaNTMqFaXuw9HAbwo0-EZN7A/exec';     // Paste from Step 3 Deployment
   const REDIRECT_URI = 'https://diaorui.github.io'; // e.g. https://user.github.io
 
+  // --- MAP SETUP ---
+  // Default: San Francisco / Bay Area
+  var map = L.map('map').setView([37.7749, -122.4194], 10);
+
+  // Add Free OpenStreetMap Tiles
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors',
+    maxZoom: 18
+  }).addTo(map);
+
+  // Update text when user moves map
+  map.on('moveend', function() {
+    var b = map.getBounds();
+    var center = map.getCenter();
+    document.getElementById('coord-text').innerText = 
+      `Selected: ${center.lat.toFixed(2)}, ${center.lng.toFixed(2)} (Width: ${(b.getEast() - b.getWest()).toFixed(2)}°)`;
+  });
+
+  // --- AUTH & SYNC LOGIC ---
   var client;
-  
   window.onload = function() {
     client = google.accounts.oauth2.initCodeClient({
       client_id: CLIENT_ID,
       scope: 'https://www.googleapis.com/auth/calendar.app.created openid email',
       ux_mode: 'popup',
       callback: (response) => {
-        if (response.code) {
-          sendToBackend(response.code);
-        }
+        if (response.code) sendToBackend(response.code);
       }
     });
   };
 
   function sendToBackend(code) {
     var statusDiv = document.getElementById('status');
-    statusDiv.innerHTML = "⏳ <b>Connecting...</b> <br><small>We are verifying your account and checking for existing setups.</small>";
+    statusDiv.innerHTML = "⏳ <b>Connecting...</b> <br><small>Verifying account & syncing events...</small>";
     statusDiv.style.color = "blue";
     
+    // CAPTURE MAP BOUNDS DYNAMICALLY
+    var bounds = map.getBounds();
+    
     const config = {
-      north: document.getElementById('north').value,
-      south: document.getElementById('south').value,
-      east: document.getElementById('east').value,
-      west: document.getElementById('west').value,
-      slug: document.getElementById('slug').value
+      slug: document.getElementById('slug').value,
+      // Leaflet gives us the exact boundaries of the visible screen
+      north: bounds.getNorth(),
+      south: bounds.getSouth(),
+      east: bounds.getEast(),
+      west: bounds.getWest()
     };
 
     fetch(GAS_URL, {
@@ -92,35 +144,21 @@
     .then(res => res.json())
     .then(data => {
       if(data.status === 'success') {
-        // SUCCESS MESSAGING
         var msg = "";
-        
         if (data.action === 'created') {
-          msg = `
-            <h3>✅ You are all set!</h3>
-            <p>We created a new calendar called <b>"${data.calendarName}"</b> in your Google Calendar.</p>
-            <p>We just ran the first sync. Go check your calendar!</p>
-          `;
-        } else if (data.action === 'updated') {
-          msg = `
-            <h3>🔄 Settings Updated!</h3>
-            <p>Welcome back, <b>${data.email}</b>.</p>
-            <p>We found your existing setup and updated it to these new coordinates.</p>
-            <p>Your calendar <b>"${data.calendarName}"</b> has been refreshed.</p>
-          `;
+          msg = `✅ <b>Success!</b><br>Created calendar: <b>"${data.calendarName}"</b>`;
+        } else {
+          msg = `🔄 <b>Updated!</b><br>Refreshed settings for: <b>"${data.calendarName}"</b>`;
         }
-        
         statusDiv.innerHTML = msg;
         statusDiv.style.color = "green";
-        
       } else {
-        // ERROR MESSAGING
-        statusDiv.innerHTML = "❌ <b>Error:</b> " + data.msg;
+        statusDiv.innerHTML = "❌ Error: " + data.msg;
         statusDiv.style.color = "red";
       }
     })
     .catch(err => {
-      statusDiv.innerHTML = "❌ <b>Network Error:</b> " + err.message;
+      statusDiv.innerHTML = "❌ Network Error: " + err.message;
       statusDiv.style.color = "red";
     });
   }
