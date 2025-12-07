@@ -32,18 +32,15 @@ jobs:
           printf '%s\n' "$CLASPRC_JSON" > ~/.clasprc.json
           printf '%s\n' "$CLASP_JSON" > .clasp.json
 
-          # Debug: Validate JSON files
-          echo "Validating .clasprc.json..."
+          # Validate JSON files
+          echo "Validating configuration files..."
           if ! cat ~/.clasprc.json | jq empty 2>/dev/null; then
             echo "Error: Invalid JSON in CLASPRC_JSON secret"
-            cat ~/.clasprc.json
             exit 1
           fi
 
-          echo "Validating .clasp.json..."
           if ! cat .clasp.json | jq empty 2>/dev/null; then
             echo "Error: Invalid JSON in CLASP_JSON secret"
-            cat .clasp.json
             exit 1
           fi
 
