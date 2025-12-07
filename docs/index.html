@@ -54,7 +54,9 @@
   };
 
   function sendToBackend(code) {
-    document.getElementById('status').innerText = "Securing connection...";
+    var statusDiv = document.getElementById('status');
+    statusDiv.innerHTML = "⏳ <b>Connecting...</b> <br><small>We are verifying your account and checking for existing setups.</small>";
+    statusDiv.style.color = "blue";
     
     const config = {
       north: document.getElementById('north').value,
@@ -66,6 +68,7 @@
 
     fetch(GAS_URL, {
       method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({
         auth_code: code,
         redirect_uri: REDIRECT_URI,
@@ -75,10 +78,36 @@
     .then(res => res.json())
     .then(data => {
       if(data.status === 'success') {
-        document.getElementById('status').innerText = "✅ Success! Calendar created. Updates will run daily.";
+        // SUCCESS MESSAGING
+        var msg = "";
+        
+        if (data.action === 'created') {
+          msg = `
+            <h3>✅ You are all set!</h3>
+            <p>We created a new calendar called <b>"${data.calendarName}"</b> in your Google Calendar.</p>
+            <p>We just ran the first sync. Go check your calendar!</p>
+          `;
+        } else if (data.action === 'updated') {
+          msg = `
+            <h3>🔄 Settings Updated!</h3>
+            <p>Welcome back, <b>${data.email}</b>.</p>
+            <p>We found your existing setup and updated it to these new coordinates.</p>
+            <p>Your calendar <b>"${data.calendarName}"</b> has been refreshed.</p>
+          `;
+        }
+        
+        statusDiv.innerHTML = msg;
+        statusDiv.style.color = "green";
+        
       } else {
-        document.getElementById('status').innerText = "❌ Error: " + data.msg;
+        // ERROR MESSAGING
+        statusDiv.innerHTML = "❌ <b>Error:</b> " + data.msg;
+        statusDiv.style.color = "red";
       }
+    })
+    .catch(err => {
+      statusDiv.innerHTML = "❌ <b>Network Error:</b> " + err.message;
+      statusDiv.style.color = "red";
     });
   }
 </script>
