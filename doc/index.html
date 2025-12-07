@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>EventSync</title>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <style>
+    body { font-family: sans-serif; padding: 40px; text-align: center; }
+    .card { max-width: 400px; margin: 0 auto; padding: 20px; border: 1px solid #ccc; border-radius: 8px; }
+    input { width: 100%; padding: 8px; margin: 5px 0; box-sizing: border-box; }
+    button { background: #000; color: #fff; padding: 10px 20px; border: none; cursor: pointer; border-radius: 4px; width: 100%; }
+    #status { margin-top: 20px; color: green; }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <h2>Luma -> Google Calendar Sync</h2>
+  <p>Select your area and sync events automatically.</p>
+  
+  <div style="text-align: left;">
+    <label>Slug (e.g., ai, tech):</label>
+    <input type="text" id="slug" value="ai">
+    
+    <label>North Lat:</label><input type="text" id="north" value="37.8">
+    <label>South Lat:</label><input type="text" id="south" value="37.3">
+    <label>East Lon:</label><input type="text" id="east" value="-121.9">
+    <label>West Lon:</label><input type="text" id="west" value="-122.5">
+  </div>
+  <br>
+
+  <button onclick="client.requestCode();">📅 Connect & Sync</button>
+  <div id="status"></div>
+</div>
+
+<script>
+  // CONFIGURATION
+  const CLIENT_ID = '465296465052-863gptjafq0b1o2ou4ovq8oggvmkgjmp.apps.googleusercontent.com'; // Paste from Step 1
+  const GAS_URL = 'https://script.google.com/macros/s/AKfycbwbknJ2NDYELCsFvu1SddKO0BSrDLhPyGo0lHF4UrPNTyQtJtwCQQe_g08OvZyLBCQB4Q/exec';     // Paste from Step 3 Deployment
+  const REDIRECT_URI = 'https://diaorui.github.io'; // e.g. https://user.github.io
+
+  var client;
+  
+  window.onload = function() {
+    client = google.accounts.oauth2.initCodeClient({
+      client_id: CLIENT_ID,
+      scope: 'https://www.googleapis.com/auth/calendar',
+      ux_mode: 'popup',
+      callback: (response) => {
+        if (response.code) {
+          sendToBackend(response.code);
+        }
+      }
+    });
+  };
+
+  function sendToBackend(code) {
+    document.getElementById('status').innerText = "Securing connection...";
+    
+    const config = {
+      north: document.getElementById('north').value,
+      south: document.getElementById('south').value,
+      east: document.getElementById('east').value,
+      west: document.getElementById('west').value,
+      slug: document.getElementById('slug').value
+    };
+
+    fetch(GAS_URL, {
+      method: 'POST',
+      body: JSON.stringify({
+        auth_code: code,
+        redirect_uri: REDIRECT_URI,
+        config: config
+      })
+    })
+    .then(res => res.json())
+    .then(data => {
+      if(data.status === 'success') {
+        document.getElementById('status').innerText = "✅ Success! Calendar created. Updates will run daily.";
+      } else {
+        document.getElementById('status').innerText = "❌ Error: " + data.msg;
+      }
+    });
+  }
+</script>
+
+</body>
+</html>
