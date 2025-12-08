@@ -59,7 +59,7 @@ EventSync enables users to:
 ### 1. Clone Repository
 
 ```bash
-git clone https://github.com/yourusername/event-sync.git
+git clone https://github.com/diaorui/event-sync.git
 cd event-sync
 ```
 
@@ -148,12 +148,12 @@ In Apps Script Editor:
 
 ### Frontend Configuration
 
-Edit `docs/index.html` and update lines 87-89:
+Edit `docs/index.html` and update:
 
 ```javascript
 const CLIENT_ID = 'your-client-id.apps.googleusercontent.com';
 const GAS_URL = 'https://script.google.com/macros/s/.../exec';
-const REDIRECT_URI = 'https://yourusername.github.io';
+const REDIRECT_URI = 'postmessage';  // Works on any domain
 ```
 
 **Note:** `GAS_URL` will be auto-updated if using CI/CD deployment.
@@ -291,13 +291,13 @@ npm run deploy    # Create new deployment
 
 ### End User Workflow
 
-1. Visit the deployed site (e.g., `https://yourusername.github.io/event-sync`)
+1. Visit the deployed site
 2. Select event category from dropdown
 3. Pan and zoom the map to your desired area
-4. Click **"Sync This Area"**
-5. Authorize Google Calendar access
+4. Click **"🔐 Authorize & Sync"**
+5. Authorize Google Calendar access in popup
 6. A new calendar will be created: "Luma Events (category)"
-7. Events sync automatically every few hours
+7. Events sync automatically on a regular schedule
 
 ### Developer Workflow
 
@@ -366,9 +366,9 @@ Enable automatic background sync:
 - Check user has not revoked OAuth permissions
 
 **OAuth errors**
-- Verify redirect URI in Google Cloud Console matches `REDIRECT_URI` in index.html
+- For Google OAuth verification, ensure Privacy Policy and Terms of Service are published at `/privacy.html` and `/terms.html`
 - Check Client ID/Secret are correct in Script Properties
-- Ensure OAuth consent screen is configured
+- Ensure OAuth consent screen is configured with required URLs
 
 ### CI/CD Issues
 
@@ -413,7 +413,7 @@ Enable automatic background sync:
 ```json
 {
   "auth_code": "4/0AbC123...",
-  "redirect_uri": "https://yourusername.github.io",
+  "redirect_uri": "postmessage",
   "config": {
     "slug": "ai",
     "north": 37.9,
@@ -429,7 +429,7 @@ Enable automatic background sync:
 | Field                  | Type   | Description                              |
 |------------------------|--------|------------------------------------------|
 | `auth_code`            | string | OAuth authorization code                 |
-| `redirect_uri`         | string | OAuth redirect URI                       |
+| `redirect_uri`         | string | OAuth redirect URI (use "postmessage")   |
 | `config.slug`          | string | Event category (see ALLOWED_SLUGS)       |
 | `config.north`         | number | Northern boundary (latitude)             |
 | `config.south`         | number | Southern boundary (latitude)             |
@@ -526,7 +526,10 @@ event-sync/
 │   ├── Config.gs               # Configuration (Script Properties)
 │   └── appsscript.json         # Apps Script manifest
 ├── docs/
-│   └── index.html              # Frontend (map, OAuth, UI)
+│   ├── index.html              # Frontend (map, OAuth, UI)
+│   ├── privacy.html            # Privacy Policy (for OAuth verification)
+│   ├── terms.html              # Terms of Service (for OAuth verification)
+│   └── eventsync-logo.png      # App logo
 ├── scripts/
 │   └── update-gas-url.js       # Auto-update deployment URL
 ├── .gitignore                  # Git ignore rules
