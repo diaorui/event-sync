@@ -315,15 +315,14 @@
   }
 
   function showSuccessModal(calendarName, action) {
+    var calendarLink = '<a href="https://calendar.google.com/calendar" target="_blank" style="color: #2196f3; font-weight: bold; text-decoration: underline;">' + calendarName + '</a>';
     var message = action === 'created'
-      ? 'Created calendar: <strong>' + calendarName + '</strong>'
-      : 'Updated location for: <strong>' + calendarName + '</strong>';
+      ? 'Created calendar: ' + calendarLink
+      : 'Updated location for: ' + calendarLink;
     showModal(
       '<h3>✅ Success!</h3>' +
       '<p>' + message + '</p>' +
-      '<a href="https://calendar.google.com/calendar" target="_blank" style="text-decoration: none;">' +
-      '<button class="modal-button">View Calendar</button></a>' +
-      '<button class="modal-button secondary" onclick="hideModal()">Done</button>'
+      '<button class="modal-button" onclick="hideModal()">Done</button>'
     );
   }
 
