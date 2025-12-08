@@ -111,6 +111,15 @@
       text-align: center;
       line-height: 1.4;
     }
+
+    .map-hint {
+      font-size: 12px;
+      color: #666;
+      margin-top: 8px;
+      margin-bottom: 15px;
+      text-align: center;
+      font-style: italic;
+    }
   </style>
 </head>
 <body>
@@ -127,7 +136,7 @@
     <h3>How it Works</h3>
     <ul>
       <li>Choose your interests (AI, Tech, Food, etc.)</li>
-      <li>Select your location on the map</li>
+      <li>Pan and zoom the map to your desired area</li>
       <li>Events sync to a dedicated calendar automatically</li>
       <li>Updates regularly - no manual work needed</li>
     </ul>
@@ -150,6 +159,7 @@
     <button onclick="goToMyLocation(this)" style="width: auto; padding: 10px 15px; margin: 0; font-size: 14px; white-space: nowrap;">📍 Locate Me</button>
   </div>
   <div id="map"></div>
+  <div class="map-hint">ℹ️ Events visible in this map view will be synced</div>
 
   <div class="privacy-note">
     🔒 We only access calendars created by this app. Your existing calendars remain private.
