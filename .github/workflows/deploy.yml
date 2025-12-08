@@ -65,31 +65,30 @@ jobs:
       - name: Push to Google Apps Script
         run: npx clasp push --force
 
-      - name: Get HEAD deployment URL
+      - name: Deploy and get URL
         id: deploy
         run: |
-          # Get @HEAD deployment (always points to latest code)
+          # Create a new versioned deployment for backup/rollback
+          echo "Creating versioned deployment..."
+          npx clasp deploy --description "Auto-deploy from GitHub Actions - ${{ github.sha }}"
+
+          # Get all deployments
           DEPLOYMENTS=$(npx clasp deployments 2>&1)
           echo "$DEPLOYMENTS"
 
-          # Extract @HEAD deployment ID
-          HEAD_DEPLOYMENT=$(echo "$DEPLOYMENTS" | grep '@HEAD' | grep -oP 'AKfycb[a-zA-Z0-9_-]+' | head -1)
+          # Extract the latest versioned deployment ID (the one we just created)
+          LATEST_DEPLOYMENT=$(echo "$DEPLOYMENTS" | grep "Auto-deploy from GitHub Actions" | grep -oP 'AKfycb[a-zA-Z0-9_-]+' | head -1)
 
-          if [ -z "$HEAD_DEPLOYMENT" ]; then
-            echo "Error: Could not find @HEAD deployment"
-            echo "Creating new deployment..."
-            npx clasp deploy --description "Initial deployment from CI/CD"
-
-            # Try again
-            DEPLOYMENTS=$(npx clasp deployments 2>&1)
-            HEAD_DEPLOYMENT=$(echo "$DEPLOYMENTS" | grep '@HEAD' | grep -oP 'AKfycb[a-zA-Z0-9_-]+' | head -1)
+          if [ -z "$LATEST_DEPLOYMENT" ]; then
+            echo "Error: Could not find latest deployment"
+            exit 1
           fi
 
-          # Construct GAS URL using @HEAD deployment
-          GAS_URL="https://script.google.com/macros/s/${HEAD_DEPLOYMENT}/exec"
-          echo "deployment_id=$HEAD_DEPLOYMENT" >> $GITHUB_OUTPUT
+          # Construct GAS URL using the latest deployment
+          GAS_URL="https://script.google.com/macros/s/${LATEST_DEPLOYMENT}/exec"
+          echo "deployment_id=$LATEST_DEPLOYMENT" >> $GITHUB_OUTPUT
           echo "gas_url=$GAS_URL" >> $GITHUB_OUTPUT
-          echo "✓ Using @HEAD deployment: $GAS_URL"
+          echo "✓ Deployed to: $GAS_URL"
 
       - name: Cleanup old deployments
         run: |
