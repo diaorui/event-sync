@@ -220,10 +220,9 @@
   <div class="how-it-works">
     <h3>How it Works</h3>
     <ol>
-      <li>Choose your interests (AI, Tech, Food, etc.)</li>
-      <li>Pan and zoom the map to your desired area</li>
-      <li>Events sync to a dedicated calendar automatically</li>
-      <li>Updates regularly - no manual work needed</li>
+      <li>Choose category (AI, Tech, Food, etc.)</li>
+      <li>Select area on map</li>
+      <li>Events sync automatically</li>
     </ol>
   </div>
 
@@ -322,7 +321,9 @@
     showModal(
       '<h3>✅ Success!</h3>' +
       '<p>' + message + '</p>' +
-      '<button class="modal-button" onclick="hideModal()">Done</button>'
+      '<a href="https://calendar.google.com/calendar" target="_blank" style="text-decoration: none;">' +
+      '<button class="modal-button">View Calendar</button></a>' +
+      '<button class="modal-button secondary" onclick="hideModal()">Done</button>'
     );
   }
 
