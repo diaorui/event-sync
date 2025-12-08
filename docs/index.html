@@ -281,14 +281,33 @@
   // --- AUTH & SYNC ---
   var client;
   window.onload = function() {
-    client = google.accounts.oauth2.initCodeClient({
-      client_id: CLIENT_ID,
-      scope: 'https://www.googleapis.com/auth/calendar.app.created openid email',
-      ux_mode: 'popup',
-      callback: (response) => {
-        if (response.code) sendToBackend(response.code);
-      }
-    });
+    // Check if Google OAuth library loaded
+    if (typeof google === 'undefined' || !google.accounts || !google.accounts.oauth2) {
+      console.error('Google OAuth library failed to load');
+      return;
+    }
+
+    try {
+      client = google.accounts.oauth2.initCodeClient({
+        client_id: CLIENT_ID,
+        scope: 'https://www.googleapis.com/auth/calendar.app.created openid email',
+        ux_mode: 'popup',
+        callback: (response) => {
+          if (response.code) {
+            sendToBackend(response.code);
+          } else if (response.error) {
+            showErrorModal('Authorization failed: ' + (response.error_description || response.error));
+            enableInputs();
+          }
+        },
+        error_callback: (error) => {
+          showErrorModal('Authorization error: ' + (error.message || 'Unknown error'));
+          enableInputs();
+        }
+      });
+    } catch(e) {
+      console.error('Failed to initialize OAuth client:', e);
+    }
   };
 
   // Modal helper functions
@@ -353,8 +372,18 @@
 
   // Main sync handler - always requires authorization
   function handleSync() {
+    // Check if OAuth client is ready
+    if (!client) {
+      showErrorModal('Authentication system is still loading. Please wait a moment and try again.');
+      return;
+    }
+
     // Always trigger OAuth for fresh authorization
-    client.requestCode();
+    try {
+      client.requestCode();
+    } catch(e) {
+      showErrorModal('Failed to start authentication: ' + e.message);
+    }
   }
 
   function sendToBackend(authCode) {
