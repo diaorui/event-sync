@@ -3,6 +3,7 @@
 <head>
   <title>Event Sync - Luma to Google Calendar</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/png" href="/eventsync-logo.png">
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -28,6 +29,19 @@
 
     h2 { margin-top: 0; color: #333; margin-bottom: 5px;}
     p.subtext { color: #666; margin-bottom: 15px; font-size: 14px; }
+
+    .logo-header {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+    .logo-header img {
+      width: 48px;
+      height: 48px;
+      object-fit: contain;
+    }
 
     .info-note {
       background: #e3f2fd;
@@ -189,7 +203,10 @@
 <body>
 
 <div class="card">
-  <h2>📅 Event Sync</h2>
+  <div class="logo-header">
+    <img src="/eventsync-logo.png" alt="Event Sync Logo">
+    <h2>Event Sync</h2>
+  </div>
   <p class="subtext">Automatically sync local events from Luma to your Google Calendar</p>
 
   <div class="info-note">
