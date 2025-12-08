@@ -70,17 +70,14 @@ jobs:
         run: |
           # Create a new versioned deployment for backup/rollback
           echo "Creating versioned deployment..."
-          npx clasp deploy --description "Auto-deploy from GitHub Actions - ${{ github.sha }}"
+          DEPLOY_OUTPUT=$(npx clasp deploy --description "Auto-deploy from GitHub Actions - ${{ github.sha }}" 2>&1)
+          echo "$DEPLOY_OUTPUT"
 
-          # Get all deployments
-          DEPLOYMENTS=$(npx clasp deployments 2>&1)
-          echo "$DEPLOYMENTS"
-
-          # Extract the latest versioned deployment ID (the one we just created)
-          LATEST_DEPLOYMENT=$(echo "$DEPLOYMENTS" | grep "Auto-deploy from GitHub Actions" | grep -oP 'AKfycb[a-zA-Z0-9_-]+' | head -1)
+          # Extract deployment ID from the deploy output (the line: "Deployed AKfycb... @N")
+          LATEST_DEPLOYMENT=$(echo "$DEPLOY_OUTPUT" | grep "^Deployed" | grep -oP 'AKfycb[a-zA-Z0-9_-]+')
 
           if [ -z "$LATEST_DEPLOYMENT" ]; then
-            echo "Error: Could not find latest deployment"
+            echo "Error: Could not extract deployment ID from deploy output"
             exit 1
           fi
 
