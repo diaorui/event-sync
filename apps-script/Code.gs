@@ -108,10 +108,10 @@ function doPost(e) {
       calendarId = createSecondaryCalendar(accessToken, calName);
       
       sheet.appendRow([
-        new Date(), 
-        email, 
-        tokens.refresh_token, 
-        JSON.stringify(config), 
+        new Date(),
+        email,
+        tokens.refresh_token,
+        JSON.stringify(config),
         calendarId
       ]);
     }
@@ -160,17 +160,28 @@ function syncAllUsers() {
       var accessToken = getAccessToken(refreshToken);
       if (!accessToken) continue; // Token expired/revoked
       
-      // B. Ensure they have a dedicated Calendar
+      // B. Ensure calendar exists
       var calendarId = storedCalId;
       if (!calendarId) {
         calendarId = createSecondaryCalendar(accessToken, "Luma Events (" + config.slug + ")");
-        sheet.getRange(i + 1, 5).setValue(calendarId); // Save ID back to sheet
+        sheet.getRange(i + 1, 5).setValue(calendarId);
+      } else {
+        // Quick check: verify calendar still exists (lightweight operation)
+        try {
+          UrlFetchApp.fetch('https://www.googleapis.com/calendar/v3/calendars/' + calendarId, {
+            method: 'get',
+            headers: { Authorization: 'Bearer ' + accessToken }
+          });
+        } catch (e) {
+          Logger.log("Calendar no longer exists for " + email + ", skipping");
+          continue;  // Skip this user, don't recreate or sync
+        }
       }
-      
-      // C. Fetch Luma Events (Your original logic, simplified)
-      var events = fetchLumaEvents(config); 
-      
-      // D. Push to User's Calendar (Using REST API now)
+
+      // C. Fetch Luma Events (heavy operation - only after confirming calendar exists)
+      var events = fetchLumaEvents(config);
+
+      // D. Push to User's Calendar
       processEventsForUser(accessToken, calendarId, events);
       
     } catch (e) {
