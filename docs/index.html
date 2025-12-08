@@ -123,6 +123,88 @@
       text-align: center;
       font-style: italic;
     }
+
+    /* Modal */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(4px);
+      z-index: 9999;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.show {
+      display: flex;
+    }
+    .modal {
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+      max-width: 400px;
+      width: 90%;
+      text-align: center;
+      animation: modalSlideIn 0.3s ease;
+    }
+    @keyframes modalSlideIn {
+      from {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    .modal h3 {
+      margin: 0 0 15px 0;
+      font-size: 20px;
+      color: #333;
+    }
+    .modal p {
+      margin: 0 0 20px 0;
+      color: #666;
+      line-height: 1.5;
+    }
+    .modal-button {
+      background: #2196f3;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 6px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .modal-button:hover {
+      background: #1976d2;
+    }
+    .modal-button.secondary {
+      background: #666;
+      margin-left: 10px;
+    }
+    .modal-button.secondary:hover {
+      background: #555;
+    }
+    .spinner {
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #2196f3;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 15px auto;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
   </style>
 </head>
 <body>
@@ -219,6 +301,57 @@
     });
   };
 
+  // Modal helper functions
+  function showModal(content) {
+    document.getElementById('modal-content').innerHTML = content;
+    document.getElementById('modal').classList.add('show');
+  }
+
+  function hideModal() {
+    document.getElementById('modal').classList.remove('show');
+  }
+
+  function showLoadingModal() {
+    showModal('<div class="spinner"></div><h3>Syncing Events</h3><p>Please wait...</p>');
+  }
+
+  function showSuccessModal(calendarName, action) {
+    var message = action === 'created'
+      ? 'Created calendar: <strong>' + calendarName + '</strong>'
+      : 'Updated location for: <strong>' + calendarName + '</strong>';
+    showModal(
+      '<h3>✅ Success!</h3>' +
+      '<p>' + message + '</p>' +
+      '<button class="modal-button" onclick="hideModal()">Done</button>'
+    );
+  }
+
+  function showErrorModal(errorMsg) {
+    showModal(
+      '<h3>❌ Error</h3>' +
+      '<p>' + errorMsg + '</p>' +
+      '<button class="modal-button" onclick="hideModal()">Close</button>'
+    );
+  }
+
+  function disableInputs() {
+    document.getElementById('slug').disabled = true;
+    document.querySelector('button[onclick="handleSync();"]').disabled = true;
+    map.dragging.disable();
+    map.touchZoom.disable();
+    map.doubleClickZoom.disable();
+    map.scrollWheelZoom.disable();
+  }
+
+  function enableInputs() {
+    document.getElementById('slug').disabled = false;
+    document.querySelector('button[onclick="handleSync();"]').disabled = false;
+    map.dragging.enable();
+    map.touchZoom.enable();
+    map.doubleClickZoom.enable();
+    map.scrollWheelZoom.enable();
+  }
+
   // Main sync handler - checks for cached token first
   function handleSync() {
     var cachedToken = localStorage.getItem('luma_access_token');
@@ -235,9 +368,9 @@
   }
 
   function sendToBackend(authCode, accessToken) {
-    var statusDiv = document.getElementById('status');
-    statusDiv.innerHTML = "⏳ <b>Connecting...</b>";
-    statusDiv.style.color = "blue";
+    // Show loading modal and disable inputs
+    showLoadingModal();
+    disableInputs();
 
     var bounds = map.getBounds();
 
@@ -265,6 +398,8 @@
     })
     .then(res => res.json())
     .then(data => {
+      enableInputs();
+
       if(data.status === 'success') {
         // Cache the access token for 1 hour
         if (data.accessToken) {
@@ -272,32 +407,32 @@
           localStorage.setItem('luma_token_expiry', Date.now() + 3600000); // 1 hour
         }
 
-        var msg = "";
-        if (data.action === 'created') {
-          msg = `✅ <b>Success!</b><br>Created calendar: <b>"${data.calendarName}"</b>`;
-        } else {
-          msg = `🔄 <b>Updated!</b><br>Refreshed location for: <b>"${data.calendarName}"</b>`;
-        }
-        statusDiv.innerHTML = msg;
-        statusDiv.style.color = "green";
+        showSuccessModal(data.calendarName, data.action);
       } else {
         // If token is invalid/expired, clear cache and retry with OAuth
         if (data.msg && data.msg.includes('token') && accessToken) {
           localStorage.removeItem('luma_access_token');
           localStorage.removeItem('luma_token_expiry');
+          hideModal();
           client.requestCode(); // Trigger fresh OAuth
         } else {
-          statusDiv.innerHTML = "❌ Error: " + data.msg;
-          statusDiv.style.color = "red";
+          showErrorModal(data.msg);
         }
       }
     })
     .catch(err => {
-      statusDiv.innerHTML = "❌ Network Error: " + err.message;
-      statusDiv.style.color = "red";
+      enableInputs();
+      showErrorModal("Network Error: " + err.message);
     });
   }
 </script>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div id="modal-content"></div>
+  </div>
+</div>
 
 </body>
 </html>
