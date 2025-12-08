@@ -50,85 +50,96 @@ function doPost(e) {
       email = JSON.parse(Utilities.newBlob(decoded).getDataAsString()).email;
     }
 
-    // 4. CHECK DATABASE (COMPOSITE KEY CHECK)
-    var sheet = getDbSheet();
-    var rows = sheet.getDataRange().getValues();
-    var rowIndex = -1;
-    var existingCalId = "";
-    
-    for (var i = 1; i < rows.length; i++) {
-      var rowEmail = rows[i][1];
-      var rowConfig = JSON.parse(rows[i][3]); // Parse the stored JSON
-      
-      // KEY: Match Email AND Slug
-      if (rowEmail === email && rowConfig.slug === config.slug) {
-        rowIndex = i + 1;
-        existingCalId = rows[i][4];
-        break;
-      }
+    // 4. Acquire per-user lock for entire create/update process
+    var userLock = LockService.getUserLock();
+    if (!userLock.tryLock(30000)) {
+      throw new Error('Could not acquire lock for your account. Please try again.');
     }
 
-    // 5. PREPARE VARS
-    var calName = "Luma Events (" + config.slug + ")";
-    var calendarId = existingCalId;
-    var actionTaken = "";
+    var calName, calendarId, actionTaken;
+    try {
+      // CHECK DATABASE (COMPOSITE KEY CHECK)
+      var sheet = getDbSheet();
+      var rows = sheet.getDataRange().getValues();
+      var rowIndex = -1;
+      var existingCalId = "";
 
-    // 6. LOGIC: UPDATE vs CREATE
-    if (rowIndex > 0) {
-      // --- UPDATE EXISTING ROW ---
-      actionTaken = "updated";
-      
-      // Health Check: Is the specific calendar for THIS slug still alive?
-      var isCalendarValid = false;
-      if (calendarId) {
-        try {
-          UrlFetchApp.fetch('https://www.googleapis.com/calendar/v3/calendars/' + calendarId, {
-            method: 'patch',
-            headers: { Authorization: 'Bearer ' + accessToken },
-            contentType: 'application/json',
-            payload: JSON.stringify({ summary: calName })
-          });
-          isCalendarValid = true;
-        } catch(e) { 
-          console.log("Calendar " + calendarId + " is dead.");
+      for (var i = 1; i < rows.length; i++) {
+        var rowEmail = rows[i][1];
+        var rowConfig = JSON.parse(rows[i][3]); // Parse the stored JSON
+
+        // KEY: Match Email AND Slug
+        if (rowEmail === email && rowConfig.slug === config.slug) {
+          rowIndex = i + 1;
+          existingCalId = rows[i][4];
+          break;
         }
       }
-      
-      if (!isCalendarValid) {
+
+      // 5. PREPARE VARS
+      calName = "Luma Events (" + config.slug + ")";
+      calendarId = existingCalId;
+      actionTaken = "";
+
+      // 6. LOGIC: UPDATE vs CREATE
+      if (rowIndex > 0) {
+        // --- UPDATE EXISTING ROW ---
+        actionTaken = "updated";
+
+        // Health Check: Is the specific calendar for THIS slug still alive?
+        var isCalendarValid = false;
+        if (calendarId) {
+          try {
+            UrlFetchApp.fetch('https://www.googleapis.com/calendar/v3/calendars/' + calendarId, {
+              method: 'patch',
+              headers: { Authorization: 'Bearer ' + accessToken },
+              contentType: 'application/json',
+              payload: JSON.stringify({ summary: calName })
+            });
+            isCalendarValid = true;
+          } catch(e) {
+            console.log("Calendar " + calendarId + " is dead.");
+          }
+        }
+
+        if (!isCalendarValid) {
+          calendarId = createSecondaryCalendar(accessToken, calName);
+          sheet.getRange(rowIndex, 5).setValue(calendarId);
+          actionTaken = "created"; // Force sync repair
+        }
+
+        // Update DB
+        sheet.getRange(rowIndex, 1).setValue(new Date());
+        if (refreshToken) {
+          sheet.getRange(rowIndex, 3).setValue(refreshToken);  // Only update if we have new refresh token
+        }
+        sheet.getRange(rowIndex, 4).setValue(JSON.stringify(config));
+
+      } else {
+        // --- NEW ENTRY ---
+        actionTaken = "created";
         calendarId = createSecondaryCalendar(accessToken, calName);
-        sheet.getRange(rowIndex, 5).setValue(calendarId);
-        actionTaken = "created"; // Force sync repair
+
+        sheet.appendRow([
+          new Date(),
+          email,
+          refreshToken || "",
+          JSON.stringify(config),
+          calendarId
+        ]);
       }
 
-      // Update DB
-      sheet.getRange(rowIndex, 1).setValue(new Date());
-      if (refreshToken) {
-        sheet.getRange(rowIndex, 3).setValue(refreshToken);  // Only update if we have new refresh token
+      // 7. CONDITIONAL SYNC (inside lock - ensures atomic operation)
+      if (actionTaken === 'created') {
+        try {
+          var events = fetchLumaEvents(config);
+          processEventsForUser(accessToken, calendarId, events);
+        } catch(e) {
+          console.error("Instant sync failed: " + e.message);
+        }
       }
-      sheet.getRange(rowIndex, 4).setValue(JSON.stringify(config));
-
-    } else {
-      // --- NEW ENTRY ---
-      actionTaken = "created";
-      calendarId = createSecondaryCalendar(accessToken, calName);
-      
-      sheet.appendRow([
-        new Date(),
-        email,
-        refreshToken || "",
-        JSON.stringify(config),
-        calendarId
-      ]);
-    }
-
-    // 7. CONDITIONAL SYNC
-    if (actionTaken === 'created') {
-      try {
-        var events = fetchLumaEvents(config);
-        processEventsForUser(accessToken, calendarId, events);
-      } catch(e) {
-        console.error("Instant sync failed: " + e.message);
-      }
+    } finally {
+      userLock.releaseLock();
     }
 
     return ContentService.createTextOutput(JSON.stringify({
@@ -140,8 +151,6 @@ function doPost(e) {
 
   } catch (err) {
     return ContentService.createTextOutput(JSON.stringify({status: 'error', msg: err.toString()}));
-  } finally {
-    lock.releaseLock();
   }
 }
 
