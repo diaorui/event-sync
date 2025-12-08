@@ -94,17 +94,17 @@ jobs:
         run: |
           echo "Checking for old deployments to clean up..."
 
-          # Get all deployment IDs (excluding @HEAD)
-          DEPLOYMENTS=$(npx clasp deployments 2>&1 | grep -oP 'AKfycb[a-zA-Z0-9_-]+' || true)
+          # Get all versioned deployments (exclude @HEAD, extract version numbers)
+          DEPLOYMENTS=$(npx clasp deployments 2>&1 | grep '@[0-9]' | grep -oP '@\K[0-9]+' | sort -n)
 
           if [ -z "$DEPLOYMENTS" ]; then
-            echo "No deployments found to clean up"
+            echo "No versioned deployments found"
             exit 0
           fi
 
           # Count deployments
           DEPLOY_COUNT=$(echo "$DEPLOYMENTS" | wc -l)
-          echo "Found $DEPLOY_COUNT deployment(s)"
+          echo "Found $DEPLOY_COUNT versioned deployment(s)"
 
           # Keep last 5 deployments, delete older ones
           KEEP_COUNT=5
@@ -113,10 +113,10 @@ jobs:
             DELETE_COUNT=$((DEPLOY_COUNT - KEEP_COUNT))
             echo "Deleting $DELETE_COUNT old deployment(s), keeping last $KEEP_COUNT"
 
-            # Delete oldest deployments
-            echo "$DEPLOYMENTS" | head -n "$DELETE_COUNT" | while read -r DEPLOY_ID; do
-              echo "Deleting deployment: $DEPLOY_ID"
-              npx clasp undeploy "$DEPLOY_ID" || echo "Failed to delete $DEPLOY_ID (might be active deployment)"
+            # Delete oldest deployments (lowest version numbers)
+            echo "$DEPLOYMENTS" | head -n "$DELETE_COUNT" | while read -r VERSION; do
+              echo "Deleting deployment @$VERSION"
+              npx clasp undeploy "@$VERSION" || echo "Failed to delete @$VERSION"
             done
 
             echo "✓ Cleanup complete"
