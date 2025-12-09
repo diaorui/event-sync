@@ -343,6 +343,15 @@
         enable_granular_consent: false, // Force all scopes to be granted together
         callback: (response) => {
           if (response.code) {
+            // Check if calendar scope was granted
+            if (response.scope) {
+              var grantedScopes = response.scope.toLowerCase();
+              if (grantedScopes.indexOf('calendar') === -1) {
+                showErrorModal('Calendar access is required to sync events. Please click "Authorize & Sync" again and grant all requested permissions.');
+                enableInputs();
+                return;
+              }
+            }
             sendToBackend(response.code);
           } else if (response.error) {
             showErrorModal('Authorization failed: ' + (response.error_description || response.error));
