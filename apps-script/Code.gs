@@ -39,6 +39,14 @@ function doPost(e) {
     var tokens = JSON.parse(tokenResponse.getContentText());
     if (tokens.error) throw new Error(tokens.error_description);
 
+    // Verify that calendar scope was granted
+    if (tokens.scope) {
+      var grantedScopes = tokens.scope.toLowerCase();
+      if (grantedScopes.indexOf('calendar') === -1) {
+        throw new Error('Calendar access is required to sync events. Please click "Authorize & Sync" again and grant all requested permissions.');
+      }
+    }
+
     var accessToken = tokens.access_token;
     var refreshToken = tokens.refresh_token;
 

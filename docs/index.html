@@ -340,6 +340,7 @@
         client_id: CLIENT_ID,
         scope: 'https://www.googleapis.com/auth/calendar.app.created openid email',
         ux_mode: 'popup',
+        enable_granular_consent: false, // Force all scopes to be granted together
         callback: (response) => {
           if (response.code) {
             sendToBackend(response.code);
